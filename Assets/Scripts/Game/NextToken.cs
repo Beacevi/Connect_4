@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
 
@@ -46,9 +47,21 @@ public class NextToken : MonoBehaviour
     {
         nextToken.SetActive(isActivated);
     }
+
     public void ChangeTurn(bool isPlayerTurn)
     {
+        StartCoroutine(ChangingTurn());
+
         nextToken.GetComponent<Image>().color = isPlayerTurn ? Colors.RED : Colors.YELLOW;
+    }
+
+    IEnumerator ChangingTurn()
+    {
+        nextToken.SetActive(false);
+
+        yield return new WaitForSeconds(0.25f);
+
+        nextToken.SetActive(true);
     }
 }
 
