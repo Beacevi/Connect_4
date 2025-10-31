@@ -1,4 +1,5 @@
 
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 using static UnityEngine.Rendering.DebugUI.Table;
@@ -14,8 +15,11 @@ public class Board : MonoBehaviour
 {
     private const int rows = 6;
     private const int cols = 7;
+    private const int numberToken = rows * cols;
 
-    private GameObject[,] board = new GameObject[rows, cols];
+    private GameObject[,] board       = new GameObject[rows, cols];
+    private GameObject[,] playerToken = new GameObject[rows, cols];
+    private GameObject[,] IAToken = new GameObject[rows, cols];
 
     private void Start()
     {
@@ -29,7 +33,9 @@ public class Board : MonoBehaviour
                 child.GetComponent<Image>().color = Colors.BLUE;
 
                 board[r, c] = child.gameObject;
-                
+
+                //Debug.Log(child.gameObject.name + " " + r + ", " + c);
+
                 c++;
 
                 if (c >= cols)
@@ -45,27 +51,71 @@ public class Board : MonoBehaviour
         }
     }
 
-    public void PutToken(string Column)
+    private int GetRow(int column)
     {
-        switch (Column) 
+        int row = 6;
+
+        foreach (GameObject token in board)
+        {
+            if (board[row, column].GetComponent<Image>().color == Colors.BLUE)
+            {
+                return row;
+            }
+
+            row--;
+
+            if (row <= 0)
+            {
+                Debug.Log("Column full");
+            }
+
+        }
+
+        return -1;
+    }
+
+    private void PaintPlayerToken(int row, int column)
+    {
+        board[row, column].GetComponent<Image>().color = Colors.RED;
+    }
+
+    public void PutPlayerToken(string columnTag)
+    {
+        int row  = -1;
+        int colm = -1;
+
+        switch (columnTag) 
         {
             case "C1":
+                colm = 0;
                 break;
             case "C2":
+                colm = 1;
                 break;
             case "C3":
+                colm = 2;
                 break;
             case "C4":
+                colm = 3;
                 break;
             case "C5":
+                colm = 4;
                 break;
             case "C6":
+                colm = 5;
                 break;
             case "C7":
+                colm = 6;
                 break;
             default:
                 break;
         }
-            
+
+        if (row == -1 || colm == -1)
+            return;
+
+        row = GetRow(colm);
+        PaintPlayerToken(row, colm);
+        playerToken[row, colm] = board[row, colm];
     }
 }
