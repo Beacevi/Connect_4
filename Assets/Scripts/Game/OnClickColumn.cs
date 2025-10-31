@@ -2,20 +2,18 @@ using UnityEngine;
 
 public class OnClickColumn : MonoBehaviour
 {
-    [SerializeField] private NextToken nextToken;
-    [SerializeField] private Board     board;
+    private NextToken nextToken;
+    private Board board;
 
     void Start()
     {
-        board     = FindFirstObjectByType<Board>();
+        board = FindFirstObjectByType<Board>();
         nextToken = FindFirstObjectByType<NextToken>();
-
     }
+
     public void OnClicked()
     {
         nextToken.ActivateNextToken(false);
-
-        Debug.Log("Hola");
-        board.PutPlayerToken(gameObject.tag);
+        board.PutToken(gameObject.tag);
     }
 }

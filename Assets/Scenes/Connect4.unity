@@ -1727,8 +1727,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cb9f7157ae396f14db8522d9428c5a2f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  nextToken: {fileID: 0}
-  board: {fileID: 0}
 --- !u!114 &773478220
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1949,8 +1947,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cb9f7157ae396f14db8522d9428c5a2f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  nextToken: {fileID: 0}
-  board: {fileID: 0}
 --- !u!114 &898158491
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1995,7 +1991,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 773478219}
+      - m_Target: {fileID: 898158490}
         m_TargetAssemblyTypeName: OnClickColumn, Assembly-CSharp
         m_MethodName: OnClicked
         m_Mode: 1
@@ -2096,8 +2092,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cb9f7157ae396f14db8522d9428c5a2f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  nextToken: {fileID: 0}
-  board: {fileID: 0}
 --- !u!114 &999143662
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2142,7 +2136,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 773478219}
+      - m_Target: {fileID: 999143661}
         m_TargetAssemblyTypeName: OnClickColumn, Assembly-CSharp
         m_MethodName: OnClicked
         m_Mode: 1
@@ -2855,8 +2849,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cb9f7157ae396f14db8522d9428c5a2f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  nextToken: {fileID: 0}
-  board: {fileID: 0}
 --- !u!114 &1238660738
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3227,8 +3219,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cb9f7157ae396f14db8522d9428c5a2f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  nextToken: {fileID: 0}
-  board: {fileID: 0}
 --- !u!114 &1559317545
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3273,7 +3263,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 773478219}
+      - m_Target: {fileID: 1559317544}
         m_TargetAssemblyTypeName: OnClickColumn, Assembly-CSharp
         m_MethodName: OnClicked
         m_Mode: 1
@@ -4022,8 +4012,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cb9f7157ae396f14db8522d9428c5a2f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  nextToken: {fileID: 0}
-  board: {fileID: 0}
 --- !u!114 &1666068398
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4068,7 +4056,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 773478219}
+      - m_Target: {fileID: 1666068397}
         m_TargetAssemblyTypeName: OnClickColumn, Assembly-CSharp
         m_MethodName: OnClicked
         m_Mode: 1
@@ -4586,6 +4574,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9b8d3096a1ebe504f93e3851d07e0b96, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  nextToken: {fileID: 2129557571}
 --- !u!114 &1842244188
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4699,8 +4688,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cb9f7157ae396f14db8522d9428c5a2f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  nextToken: {fileID: 0}
-  board: {fileID: 0}
 --- !u!114 &1850133421
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4745,7 +4732,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 773478219}
+      - m_Target: {fileID: 1850133420}
         m_TargetAssemblyTypeName: OnClickColumn, Assembly-CSharp
         m_MethodName: OnClicked
         m_Mode: 1
