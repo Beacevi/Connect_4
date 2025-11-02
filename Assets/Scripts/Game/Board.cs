@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+
 public static class Colors
 {
     public static readonly Color BLUE   = new Color32(0, 28, 135, 255);
@@ -22,6 +23,7 @@ public class Board : MonoBehaviour
 
     private bool isPlayerTurn = true; // true = Red, false = Yellow
     private bool aiThinking   = false;
+    private bool gameOver = false;
 
     private NextToken nextToken;
     private Connect4  connect4;
@@ -39,7 +41,7 @@ public class Board : MonoBehaviour
     void Start()
     {
         //ai = new NegaMax();
-        ai = new NegaMaxAB();
+        //ai = new NegaMaxAB();
         
         connect4 = GetComponent<Connect4>();
         nextToken = FindFirstObjectByType<NextToken>();
@@ -68,6 +70,7 @@ public class Board : MonoBehaviour
 
     private void Update()
     {
+        if (gameOver) return;
         // AI turn
         if (!isPlayerTurn && !aiThinking)
         {
@@ -121,6 +124,13 @@ public class Board : MonoBehaviour
                 {
                     connect4.Results(GetWinner(playerColor));
                     nextToken.ActivateNextToken(false);
+                    gameOver = true;
+                }
+                else if (IsBoardFull())
+                {
+                    connect4.Results("draw");
+                    nextToken.ActivateNextToken(false);
+                    gameOver = true;
                 }
                 else
                 {
@@ -135,7 +145,7 @@ public class Board : MonoBehaviour
         }
 
         Debug.Log("Column full: " + columnTag);
-        connect4.Results("draw");
+        return;
     }
 
     public bool CheckConnection(int row, int col, Color color)
@@ -260,5 +270,15 @@ public class Board : MonoBehaviour
                 copy[r, c] = boardColors[r, c];
 
         return copy;
+    }
+
+    private bool IsBoardFull()
+    {
+        for (int c = 0; c < cols; c++)
+        {
+            if (board[0, c].GetComponent<Image>().color == Colors.BLUE)
+                return false;
+        }
+        return true;
     }
 }

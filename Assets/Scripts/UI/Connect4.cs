@@ -20,7 +20,14 @@ public class Connect4 : MonoBehaviour
 
     public void Results (string result)
     {
-        _resultsGame.text = "The winner is: " + result;
+        if (result == "draw")
+        {
+            _resultsGame.text = "It's a draw!";
+        }
+        else
+        {
+            _resultsGame.text = "The winner is: " + result;
+        }
 
         _endGamePanel.SetActive(true);
     }
