@@ -1,4 +1,3 @@
-
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -29,13 +28,19 @@ public class Board : MonoBehaviour
     private Connect4  connect4;
 
 
-    private void AiType(int type)
+    public void AiType(int type)
     {
-        if (type == 0)
-            ai = new NegaMax();
-        else if (type == 1)
-            ai = new NegaMaxAB();
- 
+        switch(type)
+        {
+            case 0: ai = new NegaMax(); Debug.Log("Negamax"); break;
+            case 1: ai = new NegaMaxAB(); Debug.Log("NegamaxAB");  break;
+            case 2: ai = new MTD(); Debug.Log("MTD"); break;
+            //case 3: ai = new NegaScout();     break;
+            default:
+                type = 2;
+                break;
+        }
+
     }
 
     void Start()
@@ -45,8 +50,7 @@ public class Board : MonoBehaviour
         
         connect4 = GetComponent<Connect4>();
         nextToken = FindFirstObjectByType<NextToken>();
-
-        AiType(connect4.aiType);
+        
 
         int r = 0, c = 0;
         foreach (Transform child in transform)
@@ -272,7 +276,7 @@ public class Board : MonoBehaviour
         return copy;
     }
 
-    private bool IsBoardFull()
+    public bool IsBoardFull()
     {
         for (int c = 0; c < cols; c++)
         {

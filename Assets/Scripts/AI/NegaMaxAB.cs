@@ -3,152 +3,166 @@ using UnityEngine;
 
 public class NegaMaxAB : IAConnect4
 {
-    private const int INF = 100000;
-    private int maxDepth = 5;
+    private const int INFINITY = 100000;
+    private int _maxDepth = 5;
+    private Vector2Int _bestMove;
 
-    public Vector2Int GetBestMove(Board board, Color aiColor)
+    public Vector2Int GetBestMove(Board board, Color playerColor)
     {
-        Color[,] boardColors = board.CopyBoardColors();
-        List<Vector2Int> moves = board.GetValidMoves(boardColors);
+        _bestMove = new Vector2Int(-1, -1);
 
-        if (moves.Count == 0)
-            return new Vector2Int(-1, -1);
+        if (board.IsBoardFull()) return _bestMove;
 
-        // Priorizar el centro antes de evaluar (mejor apertura)
-        moves.Sort((a, b) => Mathf.Abs(3 - a.y).CompareTo(Mathf.Abs(3 - b.y)));
+        // Revisión de victorias inmediatas
+        Vector2Int immediateWin = CheckImmediateWin(board, playerColor);
+        if (immediateWin.y != -1) return immediateWin;
 
-        int bestScore = -INF;
-        Vector2Int bestMove = moves[0];
-        int alpha = -INF, beta = INF;
+        // Bloquear amenazas inmediatas del oponente
+        Color opponentColor = (playerColor == Colors.RED) ? Colors.YELLOW : Colors.RED;
+        Vector2Int blockOpponent = CheckImmediateWin(board, opponentColor);
+        if (blockOpponent.y != -1) return blockOpponent;
 
-        foreach (var move in moves)
+        int guess = Evaluate(board, playerColor);
+        int lowerBound = -INFINITY;
+        int upperBound = INFINITY;
+
+        while (lowerBound < upperBound)
         {
-            Color[,] copy = board.CopyBoard(boardColors);
-            copy[move.x, move.y] = aiColor;
+            int beta = (guess == lowerBound) ? guess + 1 : guess;
+            int score = NegamaxSearch(board, playerColor, 0, beta - 1, beta);
 
-            int score = -NegamaxAB(board, copy, Opponent(aiColor), 1, -beta, -alpha, aiColor);
+            if (score < beta)
+                upperBound = score;
+            else
+                lowerBound = score;
+
+            guess = score;
+        }
+
+        return _bestMove;
+    }
+
+    private Vector2Int CheckImmediateWin(Board board, Color color)
+    {
+        Color[,] boardCopy = board.CopyBoardColors();
+        List<Vector2Int> validMoves = board.GetValidMoves(boardCopy);
+
+        foreach (var move in validMoves)
+        {
+            boardCopy[move.x, move.y] = color;
+            if (board.CheckConnection(boardCopy, move.x, move.y, color))
+            {
+                return move;
+            }
+            boardCopy[move.x, move.y] = Colors.BLUE;
+        }
+
+        return new Vector2Int(-1, -1);
+    }
+
+    private int NegamaxSearch(Board board, Color playerColor, int depth, int alpha, int beta)
+    {
+        if (depth >= _maxDepth || board.IsBoardFull())
+            return Evaluate(board, playerColor);
+
+        int bestScore = -INFINITY;
+        Vector2Int bestMoveLocal = new Vector2Int(-1, -1);
+        Color opponentColor = (playerColor == Colors.RED) ? Colors.YELLOW : Colors.RED;
+
+        Color[,] boardCopy = board.CopyBoardColors();
+        List<Vector2Int> validMoves = board.GetValidMoves(boardCopy);
+
+        // Ordenar movimientos por cercanía al centro para mejorar poda alfa-beta
+        validMoves.Sort((a, b) => Mathf.Abs(3 - a.y).CompareTo(Mathf.Abs(3 - b.y)));
+
+        foreach (Vector2Int move in validMoves)
+        {
+            boardCopy[move.x, move.y] = playerColor;
+
+            int score;
+            if (board.CheckConnection(boardCopy, move.x, move.y, playerColor))
+            {
+                score = INFINITY - depth;
+            }
+            else
+            {
+                score = -NegamaxSearch(board, opponentColor, depth + 1, -beta, -alpha);
+            }
+
+            boardCopy[move.x, move.y] = Colors.BLUE;
 
             if (score > bestScore)
             {
                 bestScore = score;
-                bestMove = move;
+                bestMoveLocal = move;
             }
 
             alpha = Mathf.Max(alpha, score);
             if (alpha >= beta) break;
         }
 
-        return bestMove;
+        if (depth == 0) _bestMove = bestMoveLocal;
+
+        return bestScore;
     }
 
-    private int NegamaxAB(Board board, Color[,] boardColors, Color player, int depth, int alpha, int beta, Color aiColor)
+    private int Evaluate(Board board, Color playerColor)
     {
-        List<Vector2Int> moves = board.GetValidMoves(boardColors);
-
-        // Terminal states
-        if (moves.Count == 0 || depth >= maxDepth)
-            return EvaluateBoard(boardColors, aiColor);
-
-        int best = -INF;
-
-        foreach (var move in moves)
-        {
-            Color[,] copy = board.CopyBoard(boardColors);
-            copy[move.x, move.y] = player;
-
-            if (board.CheckConnection(copy, move.x, move.y, player))
-            {
-                if (player == aiColor)
-                    return INF - depth; // AI wins fast
-                else
-                    return -INF + depth; // Opponent wins
-            }
-
-            int score = -NegamaxAB(board, copy, Opponent(player), depth + 1, -beta, -alpha, aiColor);
-            best = Mathf.Max(best, score);
-            alpha = Mathf.Max(alpha, score);
-
-            if (alpha >= beta)
-                break;
-        }
-
-        return best;
-    }
-
-    private int EvaluateBoard(Color[,] boardColors, Color aiColor)
-    {
+        Color opponentColor = (playerColor == Colors.RED) ? Colors.YELLOW : Colors.RED;
         int score = 0;
-        Color opponent = Opponent(aiColor);
+        Color[,] boardColors = board.CopyBoardColors();
 
-        // Prioriza el centro
-        for (int r = 0; r < 6; r++)
-        {
-            if (boardColors[r, 3] == aiColor)
-                score += 6;
-            else if (boardColors[r, 3] == opponent)
-                score -= 6;
-        }
-
+        // Evaluación de ventanas de 4
         for (int r = 0; r < 6; r++)
         {
             for (int c = 0; c < 7; c++)
             {
-                // Horizontal
-                if (c <= 3)
-                    score += EvaluateWindow(GetWindow(boardColors, r, c, 0, 1), aiColor, opponent);
-                // Vertical
-                if (r <= 2)
-                    score += EvaluateWindow(GetWindow(boardColors, r, c, 1, 0), aiColor, opponent);
-                // Diagonal 
-                if (r <= 2 && c <= 3)
-                    score += EvaluateWindow(GetWindow(boardColors, r, c, 1, 1), aiColor, opponent);
-                // Diagonal 
-                if (r <= 2 && c >= 3)
-                    score += EvaluateWindow(GetWindow(boardColors, r, c, 1, -1), aiColor, opponent);
+                if (boardColors[r, c] == Colors.BLUE) continue;
+
+                score += EvaluateWindow(boardColors, r, c, 0, 1, playerColor, opponentColor);   // Horizontal
+                score += EvaluateWindow(boardColors, r, c, 1, 0, playerColor, opponentColor);   // Vertical
+                score += EvaluateWindow(boardColors, r, c, 1, 1, playerColor, opponentColor);   // Diagonal \
+                score += EvaluateWindow(boardColors, r, c, 1, -1, playerColor, opponentColor);  // Diagonal /
             }
         }
 
+        // Bonus por controlar columnas centrales
+        for (int r = 0; r < 6; r++)
+        {
+            if (boardColors[r, 3] == playerColor) score += 3;
+            else if (boardColors[r, 3] == opponentColor) score -= 3;
+        }
+
         return score;
     }
 
-    private List<Color> GetWindow(Color[,] boardColors, int startRow, int startCol, int deltaRow, int deltaCol)
+    private int EvaluateWindow(Color[,] board, int row, int col, int rowDir, int colDir, Color player, Color opponent)
     {
-        List<Color> window = new List<Color>();
+        int playerCount = 0;
+        int opponentCount = 0;
+        int emptyCount = 0;
+
         for (int i = 0; i < 4; i++)
         {
-            int r = startRow + deltaRow * i;
-            int c = startCol + deltaCol * i;
-            window.Add(boardColors[r, c]);
-        }
-        return window;
-    }
+            int r = row + i * rowDir;
+            int c = col + i * colDir;
 
-    private int EvaluateWindow(List<Color> window, Color aiColor, Color opponent)
-    {
-        int aiCount = 0, oppCount = 0, empty = 0;
-        foreach (var cell in window)
-        {
-            if (cell == aiColor) aiCount++;
-            else if (cell == opponent) oppCount++;
-            else if (cell == Colors.BLUE) empty++;
+            if (r < 0 || r >= 6 || c < 0 || c >= 7) break;
+
+            if (board[r, c] == player) playerCount++;
+            else if (board[r, c] == opponent) opponentCount++;
+            else emptyCount++;
         }
 
-        int score = 0;
+        // Asignar puntuación estratégica
+        if (playerCount == 4) return 100000;
+        if (playerCount == 3 && emptyCount == 1) return 100;
+        if (playerCount == 2 && emptyCount == 2) return 10;
 
-        // IA heurística
-        if (aiCount == 4) score += 100000;
-        else if (aiCount == 3 && empty == 1) score += 600;
-        else if (aiCount == 2 && empty == 2) score += 100;
+        if (opponentCount == 4) return -100000;
+        if (opponentCount == 3 && emptyCount == 1) return -90;
+        if (opponentCount == 2 && emptyCount == 2) return -10;
 
-        // Defensa fuerte
-        if (oppCount == 3 && empty == 1) score -= 800;
-        else if (oppCount == 2 && empty == 2) score -= 80;
-
-        return score;
-    }
-
-    private Color Opponent(Color c)
-    {
-        return (c == Colors.RED) ? Colors.YELLOW : Colors.RED;
+        return 0;
     }
 }

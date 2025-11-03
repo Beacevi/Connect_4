@@ -34,8 +34,10 @@ public class Connect4 : MonoBehaviour
     public void OnClicked(int type)
     {
         aiType = type;
-
+        Board board = FindFirstObjectByType<Board>();
+        board.AiType(type);
         _gamePanel.SetActive(true);
         _chooseAiPanel.SetActive(false);
+        
     }
 }
