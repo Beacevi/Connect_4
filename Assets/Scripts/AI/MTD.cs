@@ -1,158 +1,166 @@
-//using System.Collections.Generic;
-//using UnityEngine;
+using System.Collections.Generic;
+using UnityEngine;
 
-//public class MTD : IAConnect4
-//{
-//    private const int INFINITY = 100000;
-//    private int _maxDepth = 5;
-//    private Vector2Int _bestMove;
+public class MTD : IAConnect4
+{
+    private const int WIN_SCORE = 1000000;
+    private int maxDepth = 6;
 
-//    public Vector2Int GetBestMove(Board board, Color playerColor)
-//    {
-//        _bestMove = new Vector2Int(-1, -1);
+    // Transposition table (cache)
+    private readonly Dictionary<string, int> transpositionTable = new Dictionary<string, int>();
 
-//        if (board.IsBoardFull()) return _bestMove;
+    // Orden ideal para poda alfa-beta
+    private readonly int[] moveOrder = { 3, 2, 4, 1, 5, 0, 6 };
 
-//        // Revisión de victorias inmediatas
-//        Vector2Int immediateWin = CheckImmediateWin(board, playerColor);
-//        if (immediateWin.y != -1) return immediateWin;
+    public Vector2Int GetBestMove(Board board)
+    {
+        int[,] grid = board.CopyBoard();
+        int bestMove = -1;
+        int bestScore = int.MinValue;
 
-//        Color opponentColor = (playerColor == Colors.RED) ? Colors.YELLOW : Colors.RED;
-//        Vector2Int blockOpponent = CheckImmediateWin(board, opponentColor);
-//        if (blockOpponent.y != -1) return blockOpponent;
+        // Iteramos las columnas con orden heurístico
+        foreach (int col in moveOrder)
+        {
+            if (!board.CanPlay(col)) continue;
 
-//        int guess = Evaluate(board, playerColor);
-//        int lowerBound = -INFINITY;
-//        int upperBound = INFINITY;
+            int row = board.Play(col, grid, 1); // IA = +1
 
-//        while (lowerBound < upperBound)
-//        {
-//            int beta = (guess == lowerBound) ? guess + 1 : guess;
-//            int score = NegamaxWithWindow(board, playerColor, 0, beta - 1, beta);
+            // --- MTD(f) search ---
+            int guess = 0; // valor inicial (puedes usar la evaluación actual o 0)
+            int score = -MTDf(grid, -guess, maxDepth - 1, -1, board);
 
-//            if (score < beta)
-//                upperBound = score;
-//            else
-//                lowerBound = score;
+            board.Undo(grid, col, row);
 
-//            guess = score;
-//        }
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestMove = col;
+            }
+        }
 
-//        return _bestMove;
-//    }
+        if (bestMove == -1) return new Vector2Int(-1, -1);
 
-//    private Vector2Int CheckImmediateWin(Board board, Color color)
-//    {
-//        Color[,] boardCopy = board.CopyBoardColors();
-//        List<Vector2Int> validMoves = board.GetValidMoves(boardCopy);
+        int dropRow = board.GetRow(bestMove);
+        return new Vector2Int(dropRow, bestMove);
+    }
 
-//        foreach (var move in validMoves)
-//        {
-//            boardCopy[move.x, move.y] = color;
-//            if (board.CheckConnection(boardCopy, move.x, move.y, color))
-//                return move;
-//            boardCopy[move.x, move.y] = Colors.BLUE;
-//        }
-//        return new Vector2Int(-1, -1);
-//    }
 
-//    private int NegamaxWithWindow(Board board, Color playerColor, int depth, int alpha, int beta)
-//    {
-//        if (depth >= _maxDepth || board.IsBoardFull())
-//            return Evaluate(board, playerColor);
+    //  MTD(f) core implementation
+    private int MTDf(int[,] grid, int firstGuess, int depth, int player, Board board)
+    {
+        int g = firstGuess;
+        int upperBound = WIN_SCORE;
+        int lowerBound = -WIN_SCORE;
 
-//        int bestScore = -INFINITY;
-//        Vector2Int bestMoveLocal = new Vector2Int(-1, -1);
-//        Color opponentColor = (playerColor == Colors.RED) ? Colors.YELLOW : Colors.RED;
+        while (lowerBound < upperBound)
+        {
+            int beta = (g == lowerBound) ? g + 1 : g;
+            g = NegaMaxAB(grid, depth, player, board, beta - 1, beta);
+            if (g < beta) upperBound = g;
+            else lowerBound = g;
+        }
 
-//        Color[,] boardCopy = board.CopyBoardColors();
-//        List<Vector2Int> validMoves = board.GetValidMoves(boardCopy);
+        return g;
+    }
 
-//        // Prioridad a columnas centrales
-//        validMoves.Sort((a, b) => Mathf.Abs(3 - a.y).CompareTo(Mathf.Abs(3 - b.y)));
 
-//        foreach (Vector2Int move in validMoves)
-//        {
-//            boardCopy[move.x, move.y] = playerColor;
+    private int NegaMaxAB(int[,] grid, int depth, int player, Board board, int alpha, int beta)
+    {
+        string key = GetHash(grid, depth, player);
 
-//            int score;
-//            if (board.CheckConnection(boardCopy, move.x, move.y, playerColor))
-//                score = INFINITY - depth; // ganar cuanto antes
-//            else
-//                score = -NegamaxWithWindow(board, opponentColor, depth + 1, -beta, -alpha);
+        if (transpositionTable.TryGetValue(key, out int cached))
+            return cached;
 
-//            boardCopy[move.x, move.y] = Colors.BLUE;
+        int eval = Evaluate(grid);
+        if (Mathf.Abs(eval) == WIN_SCORE || depth == 0)
+        {
+            transpositionTable[key] = eval * player;
+            return eval * player;
+        }
 
-//            if (score > bestScore)
-//            {
-//                bestScore = score;
-//                bestMoveLocal = move;
-//            }
+        int best = int.MinValue;
 
-//            alpha = Mathf.Max(alpha, score);
-//            if (alpha >= beta) break; // poda alfa-beta
-//        }
+        foreach (int col in moveOrder)
+        {
+            if (!board.CanPlay(col)) continue;
 
-//        if (depth == 0) _bestMove = bestMoveLocal;
+            int row = board.Play(col, grid, player);
+            int val = -NegaMaxAB(grid, depth - 1, -player, board, -beta, -alpha);
+            board.Undo(grid, col, row);
 
-//        return bestScore;
-//    }
+            if (val > best) best = val;
+            if (best > alpha) alpha = best;
+            if (alpha >= beta) break;
+        }
 
-//    private int Evaluate(Board board, Color playerColor)
-//    {
-//        Color opponentColor = (playerColor == Colors.RED) ? Colors.YELLOW : Colors.RED;
-//        int score = 0;
-//        Color[,] boardColors = board.CopyBoardColors();
+        transpositionTable[key] = best;
+        return best;
+    }
 
-//        for (int r = 0; r < 6; r++)
-//        {
-//            for (int c = 0; c < 7; c++)
-//            {
-//                if (boardColors[r, c] == Colors.BLUE) continue;
 
-//                score += EvaluateWindow(boardColors, r, c, 0, 1, playerColor, opponentColor);   // Horizontal
-//                score += EvaluateWindow(boardColors, r, c, 1, 0, playerColor, opponentColor);   // Vertical
-//                score += EvaluateWindow(boardColors, r, c, 1, 1, playerColor, opponentColor);   // Diagonal \
-//                score += EvaluateWindow(boardColors, r, c, 1, -1, playerColor, opponentColor);  // Diagonal /
-//            }
-//        }
+    //  Board evaluation
+    private int Evaluate(int[,] g)
+    {
+        int[] count = new int[9];
+        int rows = BoardCapacity.rows;
+        int cols = BoardCapacity.cols;
 
-//        // Bonus por controlar columna central
-//        for (int r = 0; r < 6; r++)
-//        {
-//            if (boardColors[r, 3] == playerColor) score += 3;
-//            else if (boardColors[r, 3] == opponentColor) score -= 3;
-//        }
 
-//        return score;
-//    }
+        for (int r = 0; r < rows; r++)
+            for (int c = 0; c < cols - 3; c++)
+                CountLine(g[r, c] + g[r, c + 1] + g[r, c + 2] + g[r, c + 3], count);
 
-//    private int EvaluateWindow(Color[,] board, int row, int col, int rowDir, int colDir, Color player, Color opponent)
-//    {
-//        int playerCount = 0;
-//        int opponentCount = 0;
-//        int emptyCount = 0;
+        for (int c = 0; c < cols; c++)
+            for (int r = 0; r < rows - 3; r++)
+                CountLine(g[r, c] + g[r + 1, c] + g[r + 2, c] + g[r + 3, c], count);
 
-//        for (int i = 0; i < 4; i++)
-//        {
-//            int r = row + i * rowDir;
-//            int c = col + i * colDir;
+        for (int r = 0; r < rows - 3; r++)
+            for (int c = 0; c < cols - 3; c++)
+                CountLine(g[r, c] + g[r + 1, c + 1] + g[r + 2, c + 2] + g[r + 3, c + 3], count);
 
-//            if (r < 0 || r >= 6 || c < 0 || c >= 7) break;
+        for (int r = 3; r < rows; r++)
+            for (int c = 0; c < cols - 3; c++)
+                CountLine(g[r, c] + g[r - 1, c + 1] + g[r - 2, c + 2] + g[r - 3, c + 3], count);
 
-//            if (board[r, c] == player) playerCount++;
-//            else if (board[r, c] == opponent) opponentCount++;
-//            else emptyCount++;
-//        }
+        if (count[8] > 0) return WIN_SCORE;
+        if (count[0] > 0) return -WIN_SCORE;
 
-//        if (playerCount == 4) return 100000;
-//        if (playerCount == 3 && emptyCount == 1) return 100;
-//        if (playerCount == 2 && emptyCount == 2) return 10;
+        int score = -count[1] * 6 - count[2] * 3 - count[3]
+                    + count[7] * 6 + count[6] * 3 + count[5];
 
-//        if (opponentCount == 4) return -100000;
-//        if (opponentCount == 3 && emptyCount == 1) return -90;
-//        if (opponentCount == 2 && emptyCount == 2) return -10;
+        int centerCol = cols / 2;
+        for (int r = 0; r < rows; r++)
+        {
+            if (g[r, centerCol] == 1) score += 3;
+            else if (g[r, centerCol] == -1) score -= 3;
+        }
 
-//        return 0;
-//    }
-//}
+        return score;
+    }
+
+    private void CountLine(int val, int[] c)
+    {
+        switch (val)
+        {
+            case 4: c[8]++; break;
+            case -4: c[0]++; break;
+            case 3: c[7]++; break;
+            case -3: c[1]++; break;
+            case 2: c[6]++; break;
+            case -2: c[2]++; break;
+            case 1: c[5]++; break;
+            case -1: c[3]++; break;
+        }
+    }
+
+    //  Simple hashing (for caching)
+    private string GetHash(int[,] grid, int depth, int player)
+    {
+        System.Text.StringBuilder sb = new System.Text.StringBuilder();
+        sb.Append(depth).Append('_').Append(player).Append('_');
+        for (int r = 0; r < BoardCapacity.rows; r++)
+            for (int c = 0; c < BoardCapacity.cols; c++)
+                sb.Append(grid[r, c]);
+        return sb.ToString();
+    }
+}

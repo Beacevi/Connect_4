@@ -36,8 +36,10 @@ public class Board : MonoBehaviour
         {
             case 0:  ai = new NegaMax(); break;
             case 1:  ai = new NegaMaxAB(); break;
-            case 2:  ai = new Minimax(); break;
-            default: ai = new Minimax(); break;
+            case 2:  ai = new MTD(); break;
+            case 3: ai = new NegaScout(); break;
+            case 4: ai = new AspirationalSearch(); break;
+            default: ai = new NegaMax(); break;
         }
     }
 
