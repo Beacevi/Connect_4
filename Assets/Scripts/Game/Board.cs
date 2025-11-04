@@ -3,56 +3,52 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-
 public static class Colors
 {
-    public static readonly Color BLUE   = new Color32(0, 28, 135, 255);
-    public static readonly Color RED    = new Color32(255, 0, 0, 255);
+    public static readonly Color BLUE = new Color32(0, 28, 135, 255);
+    public static readonly Color RED = new Color32(255, 0, 0, 255);
     public static readonly Color YELLOW = new Color32(255, 255, 0, 255);
+}
+
+public static class BoardCapacity
+{
+    public const int rows = 6;
+    public const int cols = 7;
 }
 
 public class Board : MonoBehaviour
 {
-    private const int rows = 6;
-    private const int cols = 7;
-
     private IAConnect4 ai;
 
-    private GameObject[,] board = new GameObject[rows, cols];
+    private GameObject[,] board = new GameObject[BoardCapacity.rows, BoardCapacity.cols];
 
     private bool isPlayerTurn = true; // true = Red, false = Yellow
-    private bool aiThinking   = false;
+    private bool aiThinking = false;
     private bool gameOver = false;
 
     private NextToken nextToken;
-    private Connect4  connect4;
+    private Connect4 connect4;
 
-
+    // Initialize AI type
     public void AiType(int type)
     {
-        switch(type)
+        switch (type)
         {
-            case 0: ai = new NegaMax(); Debug.Log("Negamax"); break;
-            case 1: ai = new NegaMaxAB(); Debug.Log("NegamaxAB");  break;
-            case 2: ai = new MTD(); Debug.Log("MTD"); break;
-            //case 3: ai = new NegaScout();     break;
-            default:
-                type = 2;
-                break;
+            case 0:  ai = new NegaMax(); break;
+            case 1:  ai = new NegaMaxAB(); break;
+            case 2:  ai = new Minimax(); break;
+            default: ai = new Minimax(); break;
         }
-
     }
 
+    // Initialize board with colors
     void Start()
     {
-        //ai = new NegaMax();
-        //ai = new NegaMaxAB();
-        
         connect4 = GetComponent<Connect4>();
         nextToken = FindFirstObjectByType<NextToken>();
-        
 
         int r = 0, c = 0;
+
         foreach (Transform child in transform)
         {
             if (child.GetComponent<Image>())
@@ -61,21 +57,21 @@ public class Board : MonoBehaviour
                 board[r, c] = child.gameObject;
 
                 c++;
-                if (c >= cols)
+                if (c >= BoardCapacity.cols)
                 {
                     c = 0;
                     r++;
                 }
 
-                if (r >= rows) break;
+                if (r >= BoardCapacity.rows) break;
             }
         }
     }
 
+    // Update logic for AI turns
     private void Update()
     {
         if (gameOver) return;
-        // AI turn
         if (!isPlayerTurn && !aiThinking)
         {
             aiThinking = true;
@@ -83,20 +79,20 @@ public class Board : MonoBehaviour
         }
     }
 
+    // AI move coroutine
     private IEnumerator AIMove()
     {
         yield return new WaitForSeconds(0.5f);
-
-        Vector2Int aiMove = ai.GetBestMove(this, Colors.YELLOW);
+        Vector2Int aiMove = ai.GetBestMove(this);
         if (aiMove.y != -1)
         {
             string columnTag = "C" + (aiMove.y + 1);
             PutToken(columnTag);
         }
-
         aiThinking = false;
     }
 
+    // Convert tag to column index
     private int TagToColumn(string tag)
     {
         switch (tag)
@@ -112,12 +108,13 @@ public class Board : MonoBehaviour
         }
     }
 
+    // Place token in the specified column
     public void PutToken(string columnTag)
     {
         int columnIndex = TagToColumn(columnTag);
         if (columnIndex == -1) return;
 
-        for (int r = rows - 1; r >= 0; r--)
+        for (int r = BoardCapacity.rows - 1; r >= 0; r--)
         {
             if (board[r, columnIndex].GetComponent<Image>().color == Colors.BLUE)
             {
@@ -138,23 +135,20 @@ public class Board : MonoBehaviour
                 }
                 else
                 {
-                    // Switch turn
                     isPlayerTurn = !isPlayerTurn;
                     nextToken.ChangeTurn(isPlayerTurn);
                 }
-                    
-
                 return;
             }
         }
-
         Debug.Log("Column full: " + columnTag);
         return;
     }
 
+    // Check if a player has connected 4 tokens
     public bool CheckConnection(int row, int col, Color color)
     {
-        Vector2Int[] directions = 
+        Vector2Int[] directions =
         {
             new Vector2Int(0, 1), new Vector2Int(1, 0),
             new Vector2Int(1, 1), new Vector2Int(1, -1)
@@ -163,126 +157,96 @@ public class Board : MonoBehaviour
         foreach (var dir in directions)
         {
             int count = 1;
-
-            count += CountDirection(row, col,  dir.x,  dir.y, color);
+            count += CountDirection(row, col, dir.x, dir.y, color);
             count += CountDirection(row, col, -dir.x, -dir.y, color);
 
             if (count >= 4) return true;
         }
-
         return false;
     }
 
-    private int CountDirection(int row, int col, int rowStep, int colStep, Color color)
+    // Count tokens in a given direction
+    private int CountDirection(int row, int col, int rowstep, int colstep, Color color)
     {
         int count = 0;
         while (true)
         {
-            row += rowStep;
-            col += colStep;
+            row += rowstep;
+            col += colstep;
 
-            if (row < 0 || row >= rows || col < 0 || col >= cols) break;
-
+            if (row < 0 || row >= BoardCapacity.rows || col < 0 || col >= BoardCapacity.cols) break;
             if (board[row, col].GetComponent<Image>().color != color) break;
-
             count++;
         }
         return count;
     }
 
+    // Get the winner string based on color
     public string GetWinner(Color color)
     {
-        if (color == Colors.YELLOW) return "yellow";
-
-        if (color == Colors.RED   ) return "red";
-
-        return "draw";
+        return color == Colors.YELLOW ? "yellow" : color == Colors.RED ? "red" : "draw";
     }
 
-
-    public Color[,] CopyBoardColors()
-    {
-        Color[,] copy = new Color[6, 7];
-
-        for (int r = 0; r < 6; r++)
-            for (int c = 0; c < 7; c++)
-                copy[r, c] = board[r, c].GetComponent<Image>().color;
-
-        return copy;
-    }
-
-    public List<Vector2Int> GetValidMoves(Color[,] boardColors)
-    {
-        List<Vector2Int> moves = new List<Vector2Int>();
-        for (int c = 0; c < 7; c++)
-        {
-            for (int r = 5; r >= 0; r--)
-            {
-                if (boardColors[r, c] == Colors.BLUE)
-                {
-                    moves.Add(new Vector2Int(r, c));
-                    break;
-                }
-            }
-        }
-
-        return moves;
-    }
-
-    public bool CheckConnection(Color[,] boardColors, int row, int col, Color color)
-    {
-        Vector2Int[] directions = 
-        {
-            new Vector2Int(0, 1), new Vector2Int(1,  0),
-            new Vector2Int(1, 1), new Vector2Int(1, -1)
-        };
-
-        foreach (var dir in directions)
-        {
-            int count = 1;
-
-            count += CountDirection(boardColors, row, col, dir.x, dir.y, color);
-            count += CountDirection(boardColors, row, col, -dir.x, -dir.y, color);
-
-            if (count >= 4) return true;
-        }
-        return false;
-    }
-
-    public int CountDirection(Color[,] boardColors, int row, int col, int rowStep, int colStep, Color color)
-    {
-        int count = 0;
-        while (true)
-        {
-            row += rowStep;
-            col += colStep;
-
-            if (row < 0 || row >= 6 || col < 0 || col >= 7) break;
-
-            if (boardColors[row, col] != color) break;
-            count++;
-        }
-        return count;
-    }
-
-    public Color[,] CopyBoard(Color[,] boardColors)
-    {
-        Color[,] copy = new Color[6, 7];
-
-        for (int r = 0; r < 6; r++)
-            for (int c = 0; c < 7; c++)
-                copy[r, c] = boardColors[r, c];
-
-        return copy;
-    }
-
+    
     public bool IsBoardFull()
     {
-        for (int c = 0; c < cols; c++)
+        for (int c = 0; c < BoardCapacity.cols; c++)
         {
             if (board[0, c].GetComponent<Image>().color == Colors.BLUE)
                 return false;
         }
         return true;
+    }
+
+    public bool CanPlay(int col)
+    {
+        return board[0, col].GetComponent<Image>().color == Colors.BLUE;
+    }
+
+    public int GetRow(int col)
+    {
+        for (int r = BoardCapacity.rows - 1; r >= 0; r--)
+            if (board[r, col].GetComponent<Image>().color == Colors.BLUE) return r;
+        return -1;
+    }
+
+    
+    public int Play(int col, int[,] IAgrid, int IAnum)
+    {
+        for (int row = BoardCapacity.rows - 1; row >= 0; row--)
+        {
+            if (IAgrid[row, col] == 0)
+            {
+                IAgrid[row, col] = IAnum;
+                board[row, col].GetComponent<Image>().color = IAnum == 1 ? Colors.YELLOW : Colors.RED;  // AI = Yellow, Player = Red
+                return row;
+            }
+        }
+        return -1;
+    }
+
+    public void Undo(int[,] IAgrid, int col, int row)
+    {
+        board[row, col].GetComponent<Image>().color = Colors.BLUE;
+
+        IAgrid[row, col] = 0;
+    }
+
+
+    public int[,] CopyBoard()
+    {
+        int[,] copy = new int[BoardCapacity.rows, BoardCapacity.cols];
+
+        for (int r = 0; r < BoardCapacity.rows; r++)
+        {
+            for (int c = 0; c < BoardCapacity.cols; c++)
+            {
+                var color = board[r, c].GetComponent<Image>().color;
+                if (color == Colors.RED) copy[r, c] = -1;  // Player
+                else if (color == Colors.YELLOW) copy[r, c] = 1;  // AI
+                else copy[r, c] = 0;  // Empty
+            }
+        }
+        return copy;
     }
 }
