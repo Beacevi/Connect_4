@@ -4,61 +4,54 @@ public class AspirationalSearch : IAConnect4
 {
     private const int WIN_SCORE = 1000000;
     private int maxDepth = 6;
-
-    // Controla lo estrecha que es la ventana inicial
-    private int delta = 50;
-
-    // Valor estimado del último turno
     private int lastScoreGuess = 0;
+    private readonly int[] moveOrder = { 3, 2, 4, 1, 5, 0, 6 };
+    private int bestCol;
 
     public Vector2Int GetBestMove(Board board)
     {
         int[,] grid = board.CopyBoard();
-        int bestMove = -1;
+
+        int alpha = lastScoreGuess - 500; // Ventana inicial
+        int beta = lastScoreGuess + 500;
+
         int bestScore = int.MinValue;
+        int bestMove = -1;
+        int tries = 0;
 
-        // Valor inicial de aspiración
-        int alpha = lastScoreGuess - delta;
-        int beta = lastScoreGuess + delta;
-
-        // Si falla, se amplía la ventana 
-        while (true)
+        // Intentos limitados de expansión de ventana
+        while (tries++ < 5)
         {
             int score = SearchWithWindow(board, grid, alpha, beta);
 
             if (score <= alpha)
             {
-                alpha -= delta * 2;
+                alpha -= 500;
             }
             else if (score >= beta)
             {
-                beta += delta * 2;
+                beta += 500;
             }
             else
             {
                 bestScore = score;
+                bestMove = bestCol;
+                lastScoreGuess = score;
                 break;
             }
-
-            if (Mathf.Abs(alpha) > WIN_SCORE || Mathf.Abs(beta) > WIN_SCORE)
-                break;
         }
 
-        lastScoreGuess = bestScore; //guess
         if (bestMove == -1) bestMove = bestCol;
-
         int dropRow = board.GetRow(bestMove);
         return new Vector2Int(dropRow, bestMove);
     }
-
-    private int bestCol; //mejor movimiento actual
 
     private int SearchWithWindow(Board board, int[,] grid, int alpha, int beta)
     {
         int bestScore = int.MinValue;
         int bestMoveLocal = -1;
 
-        for (int col = 0; col < BoardCapacity.cols; col++)
+        foreach (int col in moveOrder)
         {
             if (!board.CanPlay(col)) continue;
 
@@ -90,7 +83,7 @@ public class AspirationalSearch : IAConnect4
 
         int best = int.MinValue;
 
-        for (int col = 0; col < BoardCapacity.cols; col++)
+        foreach (int col in moveOrder)
         {
             if (!board.CanPlay(col)) continue;
 
@@ -131,8 +124,8 @@ public class AspirationalSearch : IAConnect4
         if (count[8] > 0) return WIN_SCORE;
         if (count[0] > 0) return -WIN_SCORE;
 
-        return -count[1] * 5 - count[2] * 2 - count[3]
-               + count[7] * 5 + count[6] * 2 + count[5];
+        return -count[1] * 6 - count[2] * 3 - count[3]
+               + count[7] * 6 + count[6] * 3 + count[5];
     }
 
     private void CountLine(int val, int[] c)

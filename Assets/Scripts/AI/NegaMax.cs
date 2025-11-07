@@ -41,7 +41,7 @@ public class NegaMax : IAConnect4
         int eval = Evaluate(grid);
 
         if (Mathf.Abs(eval) == WIN_SCORE || depth == 0)
-            return eval * player; // IMPORTANT: perspective flip
+            return eval * player; // flip
 
         int best = -99999999;
 

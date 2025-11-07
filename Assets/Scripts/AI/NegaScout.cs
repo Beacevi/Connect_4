@@ -58,7 +58,7 @@ public class NegaScout : IAConnect4
             }
             else
             {
-                // Búsqueda de ventana estrecha (scout search)
+                // Scout search
                 val = -Negascout(grid, depth - 1, -player, board, -a - 1, -a);
 
                 // Si parece prometedor, reexplorar con ventana completa
