@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -18,39 +17,47 @@ public static class BoardCapacity
 
 public class Board : MonoBehaviour
 {
-    private IAConnect4 ai;
-
+    private IAConnect4 aiRed;     // IA que juega como rojo (jugador 1)
+    private IAConnect4 aiYellow;  // IA que juega como amarillo (jugador 2)
     private GameObject[,] board = new GameObject[BoardCapacity.rows, BoardCapacity.cols];
 
-    private bool isPlayerTurn = true; // true = Red, false = Yellow
+    private bool isRedTurn = true;
     private bool aiThinking = false;
     private bool gameOver = false;
 
     private NextToken nextToken;
     private Connect4 connect4;
 
-    // Initialize AI type
-    public void AiType(int type)
+    // Inicializa los tipos de IA
+    public void SetAiTypes(int ai1, int ai2)
+    {
+        connect4 = FindFirstObjectByType<Connect4>();
+
+        aiRed = CreateAi(ai1);
+        aiYellow = ai2 == -1 ? null : CreateAi(ai2); // si es -1, es el jugador humano
+    }
+
+    // Crea el tipo de IA según su código
+    private IAConnect4 CreateAi(int type)
     {
         switch (type)
         {
-            case 0:  ai = new NegaMax(); break;
-            case 1:  ai = new NegaMaxAB(); break;
-            case 2:  ai = new MTD(); break;
-            case 3: ai = new NegaScout(); break;
-            case 4: ai = new AspirationalSearch(); break;
-            default: ai = new NegaMax(); break;
+            case 0: return new NegaMax();
+            case 1: return new NegaMaxAB();
+            case 2: return new MTD();
+            case 3: return new NegaScout();
+            case 4: return new AspirationalSearch();
+            default: return new NegaMax();
         }
     }
 
-    // Initialize board with colors
-    void Start()
+    // Inicialización del tablero visual
+    private void Start()
     {
-        connect4 = GetComponent<Connect4>();
         nextToken = FindFirstObjectByType<NextToken>();
+        connect4 = GetComponent<Connect4>();
 
         int r = 0, c = 0;
-
         foreach (Transform child in transform)
         {
             if (child.GetComponent<Image>())
@@ -64,37 +71,59 @@ public class Board : MonoBehaviour
                     c = 0;
                     r++;
                 }
-
                 if (r >= BoardCapacity.rows) break;
             }
         }
     }
 
-    // Update logic for AI turns
+    // Turnos automáticos si hay IAs
     private void Update()
     {
-        if (gameOver) return;
-        if (!isPlayerTurn && !aiThinking)
+        if (gameOver || aiThinking) return;
+
+        bool aiTurn = false;
+
+        if (connect4.PlayerExist)
+        {
+            // Modo Player vs AI 
+            aiTurn = !isRedTurn;
+        }
+        else
+        {
+            // Modo AI vs AI
+            aiTurn = true;
+        }
+
+        if (aiTurn)
         {
             aiThinking = true;
             StartCoroutine(AIMove());
         }
     }
 
-    // AI move coroutine
+    // Movimiento automático de IA
     private IEnumerator AIMove()
     {
-        yield return new WaitForSeconds(0.5f);
-        Vector2Int aiMove = ai.GetBestMove(this);
+        yield return new WaitForSeconds(0.7f);
+
+        IAConnect4 currentAi = isRedTurn ? aiRed : aiYellow;
+        if (currentAi == null)
+        {
+            aiThinking = false;
+            yield break;
+        }
+
+        Vector2Int aiMove = currentAi.GetBestMove(this);
         if (aiMove.y != -1)
         {
             string columnTag = "C" + (aiMove.y + 1);
             PutToken(columnTag);
         }
+
         aiThinking = false;
     }
 
-    // Convert tag to column index
+    // Convierte el tag de la columna al índice numérico
     private int TagToColumn(string tag)
     {
         switch (tag)
@@ -110,7 +139,7 @@ public class Board : MonoBehaviour
         }
     }
 
-    // Place token in the specified column
+    // Coloca una ficha en la columna
     public void PutToken(string columnTag)
     {
         int columnIndex = TagToColumn(columnTag);
@@ -120,7 +149,7 @@ public class Board : MonoBehaviour
         {
             if (board[r, columnIndex].GetComponent<Image>().color == Colors.BLUE)
             {
-                Color playerColor = isPlayerTurn ? Colors.RED : Colors.YELLOW;
+                Color playerColor = isRedTurn ? Colors.RED : Colors.YELLOW;
                 board[r, columnIndex].GetComponent<Image>().color = playerColor;
 
                 if (CheckConnection(r, columnIndex, playerColor))
@@ -137,17 +166,23 @@ public class Board : MonoBehaviour
                 }
                 else
                 {
-                    isPlayerTurn = !isPlayerTurn;
-                    nextToken.ChangeTurn(isPlayerTurn);
+                    isRedTurn = !isRedTurn;
+                    nextToken.ChangeTurn(isRedTurn);
+ 
+                    if (connect4.PlayerExist && !isRedTurn && !aiThinking)
+                    {
+                        aiThinking = true;
+                        StartCoroutine(AIMove());
+                    }
                 }
                 return;
             }
         }
+
         Debug.Log("Column full: " + columnTag);
-        return;
     }
 
-    // Check if a player has connected 4 tokens
+    // Comprueba si hay una conexión de 4 fichas
     public bool CheckConnection(int row, int col, Color color)
     {
         Vector2Int[] directions =
@@ -167,7 +202,6 @@ public class Board : MonoBehaviour
         return false;
     }
 
-    // Count tokens in a given direction
     private int CountDirection(int row, int col, int rowstep, int colstep, Color color)
     {
         int count = 0;
@@ -176,20 +210,23 @@ public class Board : MonoBehaviour
             row += rowstep;
             col += colstep;
 
-            if (row < 0 || row >= BoardCapacity.rows || col < 0 || col >= BoardCapacity.cols) break;
-            if (board[row, col].GetComponent<Image>().color != color) break;
+            if (row < 0 || row >= BoardCapacity.rows || col < 0 || col >= BoardCapacity.cols)
+                break;
+
+            if (board[row, col].GetComponent<Image>().color != color)
+                break;
+
             count++;
         }
         return count;
     }
 
-    // Get the winner string based on color
     public string GetWinner(Color color)
     {
-        return color == Colors.YELLOW ? "yellow" : color == Colors.RED ? "red" : "draw";
+        return color == Colors.YELLOW ? "yellow" :
+               color == Colors.RED ? "red" : "draw";
     }
 
-    
     public bool IsBoardFull()
     {
         for (int c = 0; c < BoardCapacity.cols; c++)
@@ -200,6 +237,7 @@ public class Board : MonoBehaviour
         return true;
     }
 
+    // Métodos usados por las IA
     public bool CanPlay(int col)
     {
         return board[0, col].GetComponent<Image>().color == Colors.BLUE;
@@ -208,11 +246,11 @@ public class Board : MonoBehaviour
     public int GetRow(int col)
     {
         for (int r = BoardCapacity.rows - 1; r >= 0; r--)
-            if (board[r, col].GetComponent<Image>().color == Colors.BLUE) return r;
+            if (board[r, col].GetComponent<Image>().color == Colors.BLUE)
+                return r;
         return -1;
     }
 
-    
     public int Play(int col, int[,] IAgrid, int IAnum)
     {
         for (int row = BoardCapacity.rows - 1; row >= 0; row--)
@@ -220,7 +258,7 @@ public class Board : MonoBehaviour
             if (IAgrid[row, col] == 0)
             {
                 IAgrid[row, col] = IAnum;
-                board[row, col].GetComponent<Image>().color = IAnum == 1 ? Colors.YELLOW : Colors.RED;  // AI = Yellow, Player = Red
+                board[row, col].GetComponent<Image>().color = IAnum == 1 ? Colors.YELLOW : Colors.RED;
                 return row;
             }
         }
@@ -230,10 +268,8 @@ public class Board : MonoBehaviour
     public void Undo(int[,] IAgrid, int col, int row)
     {
         board[row, col].GetComponent<Image>().color = Colors.BLUE;
-
         IAgrid[row, col] = 0;
     }
-
 
     public int[,] CopyBoard()
     {
@@ -244,9 +280,9 @@ public class Board : MonoBehaviour
             for (int c = 0; c < BoardCapacity.cols; c++)
             {
                 var color = board[r, c].GetComponent<Image>().color;
-                if (color == Colors.RED) copy[r, c] = -1;  // Player
-                else if (color == Colors.YELLOW) copy[r, c] = 1;  // AI
-                else copy[r, c] = 0;  // Empty
+                if (color == Colors.RED) copy[r, c] = -1;
+                else if (color == Colors.YELLOW) copy[r, c] = 1;
+                else copy[r, c] = 0;
             }
         }
         return copy;
