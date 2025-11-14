@@ -59,7 +59,7 @@ public class NextToken : MonoBehaviour
     {
         nextToken.SetActive(false);
 
-        yield return new WaitForSeconds(0.25f);
+        yield return new WaitForSeconds(0.35f);
 
         nextToken.SetActive(true);
     }

@@ -7801,7 +7801,6 @@ MonoBehaviour:
   _chooseAiPanel: {fileID: 1101647452}
   _chooseModePanel: {fileID: 611459929}
   _resultsGame: {fileID: 566788623}
-  aiType: 0
   PlayerExist: 0
 --- !u!1 &1850133418
 GameObject:

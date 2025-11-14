@@ -6,30 +6,73 @@ public class MTD : IAConnect4
     private const int WIN_SCORE = 1000000;
     private int maxDepth = 6;
 
-    // Transposition table (cache)
-    private readonly Dictionary<string, int> transpositionTable = new Dictionary<string, int>();
+    private readonly ulong[,] zobristTable = new ulong[BoardCapacity.rows * BoardCapacity.cols, 2];
+    private ulong currentHash;
 
-    // Orden ideal para poda alfa-beta
+    private readonly Dictionary<ulong, int> transpositionTable = new Dictionary<ulong, int>();
+
     private readonly int[] moveOrder = { 3, 2, 4, 1, 5, 0, 6 };
+    private System.Random rand = new System.Random();
+
+    public MTD()
+    {
+        // Inicializa la tabla Zobrist con números aleatorios
+        System.Random rand = new System.Random();
+
+        for (int i = 0; i < BoardCapacity.rows * BoardCapacity.cols; i++)
+        {
+            zobristTable[i, 0] = RandomULong(rand); // jugador 1
+            zobristTable[i, 1] = RandomULong(rand); // jugador -1
+        }
+    }
+
+    // Genera un ulong aleatorio combinando dos enteros de 32 bits
+    private ulong RandomULong(System.Random rand)
+    {
+        ulong high = (ulong)rand.Next(0, int.MaxValue);
+        ulong low = (ulong)rand.Next(0, int.MaxValue);
+        return (high << 32) | low;
+    }
+
 
     public Vector2Int GetBestMove(Board board)
     {
         int[,] grid = board.CopyBoard();
+        currentHash = ComputeZobristHash(grid);
+
         int bestMove = -1;
         int bestScore = int.MinValue;
 
-        // Iteramos las columnas con orden heurístico
+        // Orden dinámico: evaluamos rápido cada columna y ordenamos
+        List<int> cols = new List<int>();
         foreach (int col in moveOrder)
+            if (board.CanPlay(col)) cols.Add(col);
+
+        cols.Sort((a, b) =>
         {
-            if (!board.CanPlay(col)) continue;
+            int scoreA = EvaluateColumn(grid, a, 1);
+            int scoreB = EvaluateColumn(grid, b, 1);
+            return scoreB.CompareTo(scoreA); // Descendente
+        });
 
-            int row = board.Play(col, grid, 1); // IA = +1
+        foreach (int col in cols)
+        {
+            int row = board.Play(col, grid, 1);
+            currentHash ^= zobristTable[row * BoardCapacity.cols + col, 0]; // IA = 1
 
-            // --- MTD(f) search ---
-            int guess = 0; // valor inicial (puedes usar la evaluación actual o 0)
+            // Victoria inmediata?
+            if (CheckWin(grid, row, col, 1))
+            {
+                board.Undo(grid, col, row);
+                currentHash ^= zobristTable[row * BoardCapacity.cols + col, 0];
+                return new Vector2Int(row, col);
+            }
+
+            int guess = Evaluate(grid);
             int score = -MTDf(grid, -guess, maxDepth - 1, -1, board);
 
             board.Undo(grid, col, row);
+            currentHash ^= zobristTable[row * BoardCapacity.cols + col, 0];
 
             if (score > bestScore)
             {
@@ -39,13 +82,10 @@ public class MTD : IAConnect4
         }
 
         if (bestMove == -1) return new Vector2Int(-1, -1);
-
         int dropRow = board.GetRow(bestMove);
         return new Vector2Int(dropRow, bestMove);
     }
 
-
-    //  MTD(f) core implementation
     private int MTDf(int[,] grid, int firstGuess, int depth, int player, Board board)
     {
         int g = firstGuess;
@@ -63,104 +103,184 @@ public class MTD : IAConnect4
         return g;
     }
 
-
     private int NegaMaxAB(int[,] grid, int depth, int player, Board board, int alpha, int beta)
     {
-        string key = GetHash(grid, depth, player);
-
-        if (transpositionTable.TryGetValue(key, out int cached))
+        if (transpositionTable.TryGetValue(currentHash, out int cached))
             return cached;
 
         int eval = Evaluate(grid);
-        if (Mathf.Abs(eval) == WIN_SCORE || depth == 0)
+        if (Mathf.Abs(eval) >= WIN_SCORE || depth == 0)
         {
-            transpositionTable[key] = eval * player;
+            transpositionTable[currentHash] = eval * player;
             return eval * player;
         }
 
         int best = int.MinValue;
 
+        // Orden dinámico
+        List<int> cols = new List<int>();
         foreach (int col in moveOrder)
-        {
-            if (!board.CanPlay(col)) continue;
+            if (board.CanPlay(col)) cols.Add(col);
 
+        cols.Sort((a, b) =>
+        {
+            int scoreA = EvaluateColumn(grid, a, player);
+            int scoreB = EvaluateColumn(grid, b, player);
+            return scoreB.CompareTo(scoreA);
+        });
+
+        foreach (int col in cols)
+        {
             int row = board.Play(col, grid, player);
+            currentHash ^= zobristTable[row * BoardCapacity.cols + col, player == 1 ? 0 : 1];
+
+            // Victoria inmediata
+            if (CheckWin(grid, row, col, player))
+            {
+                board.Undo(grid, col, row);
+                currentHash ^= zobristTable[row * BoardCapacity.cols + col, player == 1 ? 0 : 1];
+                transpositionTable[currentHash] = WIN_SCORE * player;
+                return WIN_SCORE * player;
+            }
+
             int val = -NegaMaxAB(grid, depth - 1, -player, board, -beta, -alpha);
+
             board.Undo(grid, col, row);
+            currentHash ^= zobristTable[row * BoardCapacity.cols + col, player == 1 ? 0 : 1];
 
             if (val > best) best = val;
             if (best > alpha) alpha = best;
             if (alpha >= beta) break;
         }
 
-        transpositionTable[key] = best;
+        transpositionTable[currentHash] = best;
         return best;
     }
 
-
-    //  Board evaluation
-    private int Evaluate(int[,] g)
+    private int Evaluate(int[,] grid)
     {
-        int[] count = new int[9];
+        int score = 0;
         int rows = BoardCapacity.rows;
         int cols = BoardCapacity.cols;
 
-
+        // Amenazas y líneas
         for (int r = 0; r < rows; r++)
+        {
             for (int c = 0; c < cols - 3; c++)
-                CountLine(g[r, c] + g[r, c + 1] + g[r, c + 2] + g[r, c + 3], count);
+                score += EvaluateLine(grid[r, c], grid[r, c + 1], grid[r, c + 2], grid[r, c + 3]);
+        }
 
         for (int c = 0; c < cols; c++)
+        {
             for (int r = 0; r < rows - 3; r++)
-                CountLine(g[r, c] + g[r + 1, c] + g[r + 2, c] + g[r + 3, c], count);
+                score += EvaluateLine(grid[r, c], grid[r + 1, c], grid[r + 2, c], grid[r + 3, c]);
+        }
 
         for (int r = 0; r < rows - 3; r++)
+        {
             for (int c = 0; c < cols - 3; c++)
-                CountLine(g[r, c] + g[r + 1, c + 1] + g[r + 2, c + 2] + g[r + 3, c + 3], count);
+                score += EvaluateLine(grid[r, c], grid[r + 1, c + 1], grid[r + 2, c + 2], grid[r + 3, c + 3]);
+        }
 
         for (int r = 3; r < rows; r++)
+        {
             for (int c = 0; c < cols - 3; c++)
-                CountLine(g[r, c] + g[r - 1, c + 1] + g[r - 2, c + 2] + g[r - 3, c + 3], count);
+                score += EvaluateLine(grid[r, c], grid[r - 1, c + 1], grid[r - 2, c + 2], grid[r - 3, c + 3]);
+        }
 
-        if (count[8] > 0) return WIN_SCORE;
-        if (count[0] > 0) return -WIN_SCORE;
-
-        int score = -count[1] * 6 - count[2] * 3 - count[3]
-                    + count[7] * 6 + count[6] * 3 + count[5];
-
+        // Centro
         int centerCol = cols / 2;
         for (int r = 0; r < rows; r++)
         {
-            if (g[r, centerCol] == 1) score += 3;
-            else if (g[r, centerCol] == -1) score -= 3;
+            if (grid[r, centerCol] == 1) score += 3;
+            else if (grid[r, centerCol] == -1) score -= 3;
         }
 
         return score;
     }
 
-    private void CountLine(int val, int[] c)
+    private int EvaluateLine(int a, int b, int c, int d)
     {
-        switch (val)
+        int[] line = { a, b, c, d };
+        int sum = 0;
+        int player1 = 0, player2 = 0;
+
+        foreach (int v in line)
         {
-            case 4: c[8]++; break;
-            case -4: c[0]++; break;
-            case 3: c[7]++; break;
-            case -3: c[1]++; break;
-            case 2: c[6]++; break;
-            case -2: c[2]++; break;
-            case 1: c[5]++; break;
-            case -1: c[3]++; break;
+            if (v == 1) player1++;
+            else if (v == -1) player2++;
         }
+
+        if (player1 > 0 && player2 > 0) return 0; // bloqueada
+
+        if (player1 == 4) return WIN_SCORE;
+        if (player2 == 4) return -WIN_SCORE;
+
+        if (player1 == 3 && player2 == 0) return 1000;
+        if (player2 == 3 && player1 == 0) return -1000;
+
+        if (player1 == 2 && player2 == 0) return 10;
+        if (player2 == 2 && player1 == 0) return -10;
+
+        if (player1 == 1 && player2 == 0) return 1;
+        if (player2 == 1 && player1 == 0) return -1;
+
+        return 0;
     }
 
-    //  Simple hashing (for caching)
-    private string GetHash(int[,] grid, int depth, int player)
+    private int EvaluateColumn(int[,] grid, int col, int player)
     {
-        System.Text.StringBuilder sb = new System.Text.StringBuilder();
-        sb.Append(depth).Append('_').Append(player).Append('_');
+        for (int r = BoardCapacity.rows - 1; r >= 0; r--)
+        {
+            if (grid[r, col] == 0)
+            {
+                grid[r, col] = player;
+                int score = Evaluate(grid);
+                grid[r, col] = 0;
+                return score;
+            }
+        }
+        return 0;
+    }
+
+    private bool CheckWin(int[,] grid, int row, int col, int player)
+    {
+        int[][] directions = new int[][] {
+            new int[]{1,0}, new int[]{0,1}, new int[]{1,1}, new int[]{1,-1}
+        };
+
+        foreach (var dir in directions)
+        {
+            int count = 1;
+            for (int d = 1; d <= 3; d++)
+            {
+                int r = row + dir[0] * d, c = col + dir[1] * d;
+                if (r >= 0 && r < BoardCapacity.rows && c >= 0 && c < BoardCapacity.cols && grid[r, c] == player)
+                    count++;
+                else break;
+            }
+
+            for (int d = 1; d <= 3; d++)
+            {
+                int r = row - dir[0] * d, c = col - dir[1] * d;
+                if (r >= 0 && r < BoardCapacity.rows && c >= 0 && c < BoardCapacity.cols && grid[r, c] == player)
+                    count++;
+                else break;
+            }
+
+            if (count >= 4) return true;
+        }
+
+        return false;
+    }
+
+    private ulong ComputeZobristHash(int[,] grid)
+    {
+        ulong h = 0;
         for (int r = 0; r < BoardCapacity.rows; r++)
             for (int c = 0; c < BoardCapacity.cols; c++)
-                sb.Append(grid[r, c]);
-        return sb.ToString();
+                if (grid[r, c] != 0)
+                    h ^= zobristTable[r * BoardCapacity.cols + c, grid[r, c] == 1 ? 0 : 1];
+        return h;
     }
 }
