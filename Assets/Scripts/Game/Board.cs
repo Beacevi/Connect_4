@@ -81,25 +81,15 @@ public class Board : MonoBehaviour
     {
         if (gameOver || aiThinking) return;
 
-        bool aiTurn = false;
+        IAConnect4 currentAi = isRedTurn ? aiRed : aiYellow;
 
-        if (connect4.PlayerExist)
-        {
-            // Modo Player vs AI 
-            aiTurn = !isRedTurn;
-        }
-        else
-        {
-            // Modo AI vs AI
-            aiTurn = true;
-        }
-
-        if (aiTurn)
+        if (currentAi != null)
         {
             aiThinking = true;
             StartCoroutine(AIMove());
         }
     }
+
 
     // Movimiento automático de IA
     private IEnumerator AIMove()
