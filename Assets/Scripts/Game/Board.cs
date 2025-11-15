@@ -17,13 +17,14 @@ public static class BoardCapacity
 
 public class Board : MonoBehaviour
 {
-    private IAConnect4 aiRed;     // IA juega como rojo
-    private IAConnect4 aiYellow;  // jugador amarillo (humano)
+    private IAConnect4 aiRed;     // IA que juega como rojo (jugador 1)
+    private IAConnect4 aiYellow;  // IA que juega como amarillo (jugador 2)
     private GameObject[,] board = new GameObject[BoardCapacity.rows, BoardCapacity.cols];
 
     private bool isRedTurn = true;
     private bool aiThinking = false;
     private bool gameOver = false;
+
     private NextToken nextToken;
     private Connect4 connect4;
 
@@ -32,11 +33,8 @@ public class Board : MonoBehaviour
     {
         connect4 = FindFirstObjectByType<Connect4>();
 
-        // IA siempre será roja
         aiRed = CreateAi(ai1);
-
-        // Jugador humano será amarillo
-        aiYellow = ai2 == -1 ? null : CreateAi(ai2);
+        aiYellow = ai2 == -1 ? null : CreateAi(ai2); // si es -1, es el jugador humano
     }
 
     // Crea el tipo de IA según su código
@@ -78,13 +76,23 @@ public class Board : MonoBehaviour
         }
     }
 
-    // Turnos automáticos si hay IA
+    // Turnos automáticos si hay IAs
     private void Update()
     {
         if (gameOver || aiThinking) return;
 
-        // IA juega siempre rojo
-        bool aiTurn = isRedTurn && aiRed != null;
+        bool aiTurn = false;
+
+        if (connect4.PlayerExist)
+        {
+            // Modo Player vs AI 
+            aiTurn = !isRedTurn;
+        }
+        else
+        {
+            // Modo AI vs AI
+            aiTurn = true;
+        }
 
         if (aiTurn)
         {
@@ -96,7 +104,7 @@ public class Board : MonoBehaviour
     // Movimiento automático de IA
     private IEnumerator AIMove()
     {
-        yield return new WaitForSeconds(0.7f);
+        yield return new WaitForSeconds(0.6f);
 
         IAConnect4 currentAi = isRedTurn ? aiRed : aiYellow;
         if (currentAi == null)
@@ -106,15 +114,45 @@ public class Board : MonoBehaviour
         }
 
         Vector2Int aiMove = currentAi.GetBestMove(this);
-        if (aiMove.y != -1)
+
+        if (aiMove.x == -1 || aiMove.y == -1)
         {
-            string columnTag = "C" + (aiMove.y + 1);
-            PutToken(columnTag);
+            Debug.Log("IA no encontró jugada. Forzando movimiento");
+
+            int forcedCol = -1;
+
+
+            for (int c = 0; c < BoardCapacity.cols; c++)
+            {
+                if (CanPlay(c))
+                {
+                    forcedCol = c;
+                    break;
+                }
+            }
+
+            if (forcedCol == -1)
+            {
+                connect4.Results("draw");
+                nextToken.ActivateNextToken(false);
+                gameOver = true;
+                aiThinking = false;
+                yield break;
+            }
+
+            // Jugada forzada
+            aiMove = new Vector2Int(GetRow(forcedCol), forcedCol);
         }
+
+        string columnTag = "C" + (aiMove.y + 1);
+        PutToken(columnTag);
 
         aiThinking = false;
     }
 
+
+
+    // Convierte el tag de la columna al índice numérico
     private int TagToColumn(string tag)
     {
         switch (tag)
@@ -130,6 +168,7 @@ public class Board : MonoBehaviour
         }
     }
 
+    // Coloca una ficha en la columna
     public void PutToken(string columnTag)
     {
         int columnIndex = TagToColumn(columnTag);
@@ -159,7 +198,7 @@ public class Board : MonoBehaviour
                     isRedTurn = !isRedTurn;
                     nextToken.ChangeTurn(isRedTurn);
 
-                    if (isRedTurn && aiRed != null && !aiThinking)
+                    if (connect4.PlayerExist && !isRedTurn && !aiThinking)
                     {
                         aiThinking = true;
                         StartCoroutine(AIMove());
@@ -172,6 +211,7 @@ public class Board : MonoBehaviour
         Debug.Log("Column full: " + columnTag);
     }
 
+    // Comprueba si hay una conexión de 4 fichas
     public bool CheckConnection(int row, int col, Color color)
     {
         Vector2Int[] directions =
