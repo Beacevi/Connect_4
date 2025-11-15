@@ -242,8 +242,8 @@ public class Board : MonoBehaviour
 
     public string GetWinner(Color color)
     {
-        return color == Colors.YELLOW ? "yellow" :
-               color == Colors.RED ? "red" : "draw";
+        return color == Colors.YELLOW ? "YELLOW" :
+               color == Colors.RED ? "RED" : "DRAW";
     }
 
     public bool IsBoardFull()
