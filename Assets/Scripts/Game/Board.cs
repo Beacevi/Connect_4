@@ -17,14 +17,13 @@ public static class BoardCapacity
 
 public class Board : MonoBehaviour
 {
-    private IAConnect4 aiRed;     // IA que juega como rojo (jugador 1)
-    private IAConnect4 aiYellow;  // IA que juega como amarillo (jugador 2)
+    private IAConnect4 aiRed;     // IA juega como rojo
+    private IAConnect4 aiYellow;  // jugador amarillo (humano)
     private GameObject[,] board = new GameObject[BoardCapacity.rows, BoardCapacity.cols];
 
     private bool isRedTurn = true;
     private bool aiThinking = false;
     private bool gameOver = false;
-
     private NextToken nextToken;
     private Connect4 connect4;
 
@@ -33,8 +32,11 @@ public class Board : MonoBehaviour
     {
         connect4 = FindFirstObjectByType<Connect4>();
 
+        // IA siempre será roja
         aiRed = CreateAi(ai1);
-        aiYellow = ai2 == -1 ? null : CreateAi(ai2); // si es -1, es el jugador humano
+
+        // Jugador humano será amarillo
+        aiYellow = ai2 == -1 ? null : CreateAi(ai2);
     }
 
     // Crea el tipo de IA según su código
@@ -76,23 +78,13 @@ public class Board : MonoBehaviour
         }
     }
 
-    // Turnos automáticos si hay IAs
+    // Turnos automáticos si hay IA
     private void Update()
     {
         if (gameOver || aiThinking) return;
 
-        bool aiTurn = false;
-
-        if (connect4.PlayerExist)
-        {
-            // Modo Player vs AI 
-            aiTurn = !isRedTurn;
-        }
-        else
-        {
-            // Modo AI vs AI
-            aiTurn = true;
-        }
+        // IA juega siempre rojo
+        bool aiTurn = isRedTurn && aiRed != null;
 
         if (aiTurn)
         {
@@ -123,7 +115,6 @@ public class Board : MonoBehaviour
         aiThinking = false;
     }
 
-    // Convierte el tag de la columna al índice numérico
     private int TagToColumn(string tag)
     {
         switch (tag)
@@ -139,7 +130,6 @@ public class Board : MonoBehaviour
         }
     }
 
-    // Coloca una ficha en la columna
     public void PutToken(string columnTag)
     {
         int columnIndex = TagToColumn(columnTag);
@@ -168,8 +158,8 @@ public class Board : MonoBehaviour
                 {
                     isRedTurn = !isRedTurn;
                     nextToken.ChangeTurn(isRedTurn);
- 
-                    if (connect4.PlayerExist && !isRedTurn && !aiThinking)
+
+                    if (isRedTurn && aiRed != null && !aiThinking)
                     {
                         aiThinking = true;
                         StartCoroutine(AIMove());
@@ -182,7 +172,6 @@ public class Board : MonoBehaviour
         Debug.Log("Column full: " + columnTag);
     }
 
-    // Comprueba si hay una conexión de 4 fichas
     public bool CheckConnection(int row, int col, Color color)
     {
         Vector2Int[] directions =

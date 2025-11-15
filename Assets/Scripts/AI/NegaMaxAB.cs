@@ -4,7 +4,7 @@ using UnityEngine;
 public class NegaMaxAB : IAConnect4
 {
     private const int WIN_SCORE = 1000000;
-    private int maxDepth = 6;  // You can push depth higher now with Alpha-Beta
+    private int maxDepth = 5;  // You can push depth higher now with Alpha-Beta
     private readonly int[] moveOrder = { 3, 2, 4, 1, 5, 0, 6 };
     public Vector2Int GetBestMove(Board board)
     {

@@ -5,7 +5,7 @@ using UnityEngine;
 public class NegaMax : IAConnect4
 {
     private const int WIN_SCORE = 1000000;
-    private int maxDepth = 4;
+    private int maxDepth = 5;
 
     public Vector2Int GetBestMove(Board board)
     {

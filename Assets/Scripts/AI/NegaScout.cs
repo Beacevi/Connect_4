@@ -4,7 +4,7 @@ using UnityEngine;
 public class NegaScout : IAConnect4
 {
     private const int WIN_SCORE = 1000000;
-    private int maxDepth = 6;
+    private int maxDepth = 5;
     private readonly int[] moveOrder = { 3, 2, 4, 1, 5, 0, 6 };
 
     public Vector2Int GetBestMove(Board board)
