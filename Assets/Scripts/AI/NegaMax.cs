@@ -1,108 +1,57 @@
-using System.Collections.Generic;
 using UnityEngine;
 
-
-public class NegaMax : IAConnect4
+public class NegaMax : IAConnect4Base
 {
-    private const int WIN_SCORE = 1000000;
-    private int maxDepth = 5;
+    private const int MAX_DEPTH = 6;
+    private readonly int[] columnOrder = { 3, 4, 2, 5, 1, 6, 0 };
 
-    public Vector2Int GetBestMove(Board board)
+    protected override Vector2Int GetBestMoveInternal(Board board)
     {
         int[,] grid = board.CopyBoard();
+        int currentPlayer = BoardIsRedTurn(board) ? -1 : 1;
+        int bestScore = int.MinValue;
+        int bestCol = -1;
 
-        int bestMove = -1;
-        int bestScore = -99999999;
-
-        // AI = +1
-        for (int col = 0; col < BoardCapacity.cols; col++)
+        foreach (int col in columnOrder)
         {
-            if (!board.CanPlay(col)) continue;
+            int row = GetPlayableRow(grid, col);
+            if (row == -1) continue;
 
-            int row = board.Play(col, grid, 1);
-            int score = -negaMax(grid, maxDepth - 1, -1, board);
-            board.Undo(grid, col, row);
+            grid[row, col] = currentPlayer;
+            int score = -Negamaxf(grid, MAX_DEPTH - 1, -currentPlayer);
+            grid[row, col] = 0;
 
-            if (score > bestScore)
+            if (score > bestScore || bestCol == -1)
             {
                 bestScore = score;
-                bestMove = col;
+                bestCol = col;
             }
         }
 
-        if (bestMove == -1) return new Vector2Int(-1, -1);
-
-        int dropRow = board.GetRow(bestMove);
-        return new Vector2Int(dropRow, bestMove);
+        return new Vector2Int(board.GetRow(bestCol), bestCol);
     }
 
-    private int negaMax(int[,] grid, int depth, int player, Board board)
+    private int Negamaxf(int[,] grid, int depth, int player)
     {
-        int eval = Evaluate(grid);
+        NodesVisited++;
+        if (depth == 0 || IsTerminal(grid))
+            return Evaluate(grid, player);
 
-        if (Mathf.Abs(eval) == WIN_SCORE || depth == 0)
-            return eval * player; // flip
+        int best = int.MinValue;
 
-        int best = -99999999;
-
-        for (int col = 0; col < BoardCapacity.cols; col++)
+        foreach (int col in columnOrder)
         {
-            if (!board.CanPlay(col)) continue;
+            int row = GetPlayableRow(grid, col);
+            if (row == -1) continue;
 
-            int row = board.Play(col, grid, player);
-            int val = -negaMax(grid, depth - 1, -player, board);
-            board.Undo(grid, col, row);
+            grid[row, col] = player;
+            int score = -Negamaxf(grid, depth - 1, -player);
+            grid[row, col] = 0;
 
-            if (val > best) best = val;
+            if (score > best) best = score;
         }
 
         return best;
-    }
-
-    private int Evaluate(int[,] g)
-    {
-        int[] count = new int[9];
-
-        int rows = BoardCapacity.rows;
-        int cols = BoardCapacity.cols;
-
-        // Horizontal
-        for (int r = 0; r < rows; r++)
-            for (int c = 0; c < cols - 3; c++)
-                CountLine(g[r, c] + g[r, c + 1] + g[r, c + 2] + g[r, c + 3], count);
-
-        // Vertical
-        for (int c = 0; c < cols; c++)
-            for (int r = 0; r < rows - 3; r++)
-                CountLine(g[r, c] + g[r + 1, c] + g[r + 2, c] + g[r + 3, c], count);
-
-        // Diagonal \
-        for (int r = 0; r < rows - 3; r++)
-            for (int c = 0; c < cols - 3; c++)
-                CountLine(g[r, c] + g[r + 1, c + 1] + g[r + 2, c + 2] + g[r + 3, c + 3], count);
-
-        // Diagonal /
-        for (int r = 3; r < rows; r++)
-            for (int c = 0; c < cols - 3; c++)
-                CountLine(g[r, c] + g[r - 1, c + 1] + g[r - 2, c + 2] + g[r - 3, c + 3], count);
-
-        if (count[8] > 0) return WIN_SCORE;
-        if (count[0] > 0) return -WIN_SCORE;
-
-        return -count[1] * 5 - count[2] * 2 - count[3]
-               + count[7] * 5 + count[6] * 2 + count[5];
-    }
-
-    private void CountLine(int val, int[] c)
-    {
-        if      (val ==  4) c[8]++;
-        else if (val == -4) c[0]++;
-        else if (val ==  3) c[7]++;
-        else if (val == -3) c[1]++;
-        else if (val ==  2) c[6]++;
-        else if (val == -2) c[2]++;
-        else if (val ==  1) c[5]++;
-        else if (val == -1) c[3]++;
     }
 }
 
