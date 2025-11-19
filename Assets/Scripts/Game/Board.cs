@@ -37,7 +37,6 @@ public class Board : MonoBehaviour
         aiYellow = ai2 == -1 ? null : CreateAi(ai2); // si es -1, es el jugador humano
     }
 
-    // Crea el tipo de IA según su código
     private IAConnect4 CreateAi(int type)
     {
         switch (type)
@@ -201,7 +200,7 @@ public class Board : MonoBehaviour
         Debug.Log("Column full: " + columnTag);
     }
 
-    // Comprueba si hay una conexión de 4 fichas
+    // Comprueba si hay 4 fichas en línea
     public bool CheckConnection(int row, int col, Color color)
     {
         Vector2Int[] directions =

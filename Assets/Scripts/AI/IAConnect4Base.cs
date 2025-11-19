@@ -5,7 +5,7 @@ public abstract class IAConnect4Base : IAConnect4
 {
     public long NodesVisited { get; protected set; }
 
-    private const int WIN_SCORE = 100000;
+    protected const int WIN_SCORE = 100000;
 
     // Métricas
     public Vector2Int GetBestMove(Board board)

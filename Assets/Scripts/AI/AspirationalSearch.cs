@@ -13,6 +13,32 @@ public class AspirationalSearch : IAConnect4Base
     {
         int[,] grid = board.CopyBoard();
         int currentPlayer = BoardIsRedTurn(board) ? -1 : 1;
+
+        for (int c = 0; c < BoardCapacity.cols; c++)
+        {
+            int r = GetPlayableRow(grid, c);
+            if (r == -1) continue;
+
+            grid[r, c] = currentPlayer;
+            if (EvaluateWindowForWin(grid, currentPlayer, r, c))
+                return new Vector2Int(r, c);
+            grid[r, c] = 0;
+        }
+
+        int opp = -currentPlayer;
+        for (int c = 0; c < BoardCapacity.cols; c++)
+        {
+            int r = GetPlayableRow(grid, c);
+            if (r == -1) continue;
+            grid[r, c] = opp;
+            if (EvaluateWindowForWin(grid, opp, r, c))
+            {
+                grid[r, c] = 0;
+                return new Vector2Int(board.GetRow(c), c);
+            }
+            grid[r, c] = 0;
+        }
+
         int bestScore = int.MinValue;
         int bestCol = -1;
 

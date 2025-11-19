@@ -42,5 +42,3 @@ public class ZobristKeyConnect4
         ApplyMove(row, col, player);
     }
 }
-
-
